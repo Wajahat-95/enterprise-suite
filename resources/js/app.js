@@ -1,14 +1,27 @@
+import '../css/app.css';
 import './bootstrap';
-import { createApp } from 'vue';
 
-// 1. Import our new component
-import TaskList from './components/TaskList.vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { createApp, h } from 'vue';
+import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
-// 2. Create the Vue application instance
-const app = createApp({});
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-// 3. Register our component globally
-app.component('task-list', TaskList);
-
-// 4. Mount the app to the DOM element with the ID 'app'
-app.mount('#app');
+createInertiaApp({
+    title: (title) => `${title} - ${appName}`,
+    resolve: (name) =>
+        resolvePageComponent(
+            `./Pages/${name}.vue`,
+            import.meta.glob('./Pages/**/*.vue'),
+        ),
+    setup({ el, App, props, plugin }) {
+        return createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .use(ZiggyVue)
+            .mount(el);
+    },
+    progress: {
+        color: '#4B5563',
+    },
+});
