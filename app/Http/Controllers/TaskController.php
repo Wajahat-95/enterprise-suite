@@ -51,12 +51,35 @@ class TaskController extends Controller
         return redirect(route('dashboard'));
     }
 
-    public function dashboard() {
+    public function dashboard(Request $request) {
         $user = Auth::user();
 
-        // Pass the user's tasks directly to the Dashboard.vue component
+        // 1. Start the Base Query (secured to the user)
+        $query = $user->tasks()->latest();
+
+        // 2. Add Filtering Logic based on 'status' query parameter
+        if($request->has('status')) {
+            if($request->status === 'completed') {
+                $query->where('is_completed', true);
+            } elseif ($request->status === 'pending') {
+                $query->where('is_completed', false);
+            }
+        }
+
+        // 3. Apply Pagination to the final query
+        $tasks = $query->paginate(10);
+
+
+
+
+        // // 1. Use paginate(10) instead of get() to fetch chunks of 10 tasks.
+        // // 2. Use latest() to ensure the newest tasks appear first.
+        // $tasks = $user->tasks()->latest()->paginate(10);
+
         return Inertia::render('Dashboard', [
-            'tasks' => $user->tasks()->get()
+            // The $tasks variable now contains all pagination meta-data (links, counts, etc.)
+
+            'tasks' => $tasks
         ]);
     }
 
