@@ -14,6 +14,12 @@
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
+
+        @inertia
+        @if (file_exists(public_path('js/ziggy.js')))
+            <script src="{{ asset('js/ziggy.js') }}"></script>
+            
+        @endif
     </head>
     <body class="font-sans antialiased">
         @inertia

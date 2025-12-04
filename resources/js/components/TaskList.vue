@@ -7,6 +7,14 @@
                     {{  task.title  }} (User ID: {{ task.user_id }})
 
                 </span>
+
+                <button 
+                    @click="deleteTask(task.id)"
+                    class="text-sm text-red-600 hover:text-red-900 font-medium ml-4 transition duration-150 ease-in-out"
+                    aria-label="Delete Task"
+                    >
+                    Delete
+                </button>
                 <span class="text-xs text-green-500" v-if="task.is_completed">COMPLETE</span>
                 <span class="text-xs text-red-500">PENDING</span>
 
@@ -16,38 +24,38 @@
     </div>
 </template>
 
-<script>
-import axios from 'axios';
+<script setup>
 
-    export default {
-        name: 'TaskList',
-        // 2. Initial state (data storage)
-        data() {
-            return {
-                tasks: [], // Empty array to hold the tasks fetched from the API
-            };
-        },
-        // 3. Lifecycle hook: Runs immediately after the component loads
-        mounted() {
-            this.fetchTasks();
-        },
+import { ref, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
 
-        methods: {
-            fetchTasks() {
-                // 4. API call to your Laravel backend route
-                axios.get('/tasks')
-                    .then(response => {
-                        // Success: Assign the data received from the API to our 'tasks' array
-                        this.tasks = response.data;
-                        console.log("Tasks loaded succeccfully!");
-                    })
-                    .catch(error => {
-                        // Error: If the API call fails
-                        console.error("Error fetching tasks:", error)
-                    })
-            }
-        }
+// 1. DEFINE THE PROP (initialTasks)
+const props = defineProps({
+    initialTasks: {
+        type: Array,
+        required: true
     }
+})
+
+// 2. USE 'ref' TO COPY PROPS INTO A LOCAL, REACTIVE VARIABLE
+// This allow us to modify the task list later (e.g., when deleting a task)
+const tasks = ref(props.initialTasks);
+
+watch(() => props.initialTasks, (newTasks) => {
+    tasks.value = newTasks;
+})
+
+// ADD THE DELETE METHOD
+const deleteTask = (id) => {
+    // Confirmation is important for destructive actions (Corrected typo)
+    if (confirm('Are you sure you want to delete this task?')) { // <-- ADDED OPENING BRACE
+        // Use Inertia's router to send a DELETE request
+        router.delete(route('tasks.destroy', id), {
+            preserveScroll: true, // Keeps the scroll position
+        });
+    } // <-- ADDED CLOSING BRACE
+};
+
 </script>
 
 <style scoped>

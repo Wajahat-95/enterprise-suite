@@ -4,22 +4,71 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Task;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Routing\Controller;
+use Inertia\Inertia;
 
 class TaskController extends Controller
 {
     // Method 1: Fetch all tasks from the database and return them as JSON
     public function index() {
-        // "Select * from tasks"
-        return Task::all();
+        // 1. Get the authenticated user object
+        $user = Auth::user();
+
+        // 2. Use the relationship to getch only their tasks
+        $tasks = $user->tasks()->get();
+
+        return response()->json($tasks);
     }
 
-    public function createTestTask() {
-        $task = Task::create([
-            'user_id' => 1, // We are assigning this to the user we just seeded
-            'title' => 'Complete the Enterprise Suite setup',
-            'is_completed' => false
+    // Securely create a test task for the logged-in user
+
+    // public function createTestTask() {
+    //     // Get the ID of the currently logged-in user
+    //     $userId = Auth::id();
+
+    //     // Use the ID when creating the task
+    //     $task = Task::create([
+    //         'user_id' => $userId, // This is now dynamic
+    //         'title' => 'Complete Project Two: Task CRUD',
+    //         'is_completed' => false
+    //     ]);
+
+    //     return response('Test Task Created for User ID: ' . $userId, 200);
+    // }
+
+    public function store(Request $request) {
+        // 1. Validate the incoming request data
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
         ]);
 
-        return "Task Created:" . $task->title;
+        // 2. Create the task, automatically linking it to the user
+        Auth::user()->tasks()->create($validated);
+
+        // 3. Redirect back to the tasks list
+        return redirect(route('dashboard'));
+    }
+
+    public function dashboard() {
+        $user = Auth::user();
+
+        // Pass the user's tasks directly to the Dashboard.vue component
+        return Inertia::render('Dashboard', [
+            'tasks' => $user->tasks()->get()
+        ]);
+    }
+
+    public function destroy(Task $task) { // Laravel automatically fetches the Task Object based on the ID
+        // Security Check: Ensure the user owns the task before deleting
+        if($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.'); // Stop if the user is not the owner
+        }
+
+        $task->delete();
+
+        // Redirect bac to te dashboard to instantly update the list
+        return redirect(route('dashboard'));
     }
 }
