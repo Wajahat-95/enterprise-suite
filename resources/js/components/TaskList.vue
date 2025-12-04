@@ -2,9 +2,12 @@
     <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-md">
         <h2 class="text-xl font-bold text-gray-800">Enterprise Tasks</h2>
         <ul v-if="tasks.length">
-            <li v-for="task in tasks" :key="task.id" class="p-2 border-b last:border-b-0 flex justify-between items center">
+            <li v-for="task in tasks" :key="task.id" 
+                class="p-2 border-b last:border-b-0 flex justify-between items center transition duration-150 ease-in-out cursor-pointer hover:bg-gray-50"
+                @click="toggleCompletion(task)"
+                >
                 <span :class="{ 'line-through text-gray-500': task.is_completed}">
-                    {{  task.title  }} (User ID: {{ task.user_id }})
+                    {{  task.title  }}
 
                 </span>
 
@@ -15,8 +18,8 @@
                     >
                     Delete
                 </button>
-                <span class="text-xs text-green-500" v-if="task.is_completed">COMPLETE</span>
-                <span class="text-xs text-red-500">PENDING</span>
+                <!-- <span class="text-xs text-green-500" v-if="task.is_completed">COMPLETE</span>
+                <span class="text-xs text-red-500">PENDING</span> -->
 
             </li>
         </ul>
@@ -56,6 +59,17 @@ const deleteTask = (id) => {
     } // <-- ADDED CLOSING BRACE
 };
 
+const toggleCompletion = (task) => {
+    // 1. Calculate the new completion state
+    const newStatus = !task.is_completed;
+
+    // 2. Send the PATCH request to the controller
+    router.patch(route('tasks.update', task.id), {
+        is_completed: newStatus,
+    }, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <style scoped>

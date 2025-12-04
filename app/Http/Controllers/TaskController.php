@@ -71,4 +71,23 @@ class TaskController extends Controller
         // Redirect bac to te dashboard to instantly update the list
         return redirect(route('dashboard'));
     }
+
+    public function update(Request $request, Task $task) {
+        // 1. Security Check: Ensure the user owns the task
+        if($task->user_id !== Auth::id()) {
+            // You must not let users update tasks they dont own!
+            abort(403, 'Unauthorized action.');
+        }
+
+        // 2. Validate the incoming request data (must be a boolean)
+        $validated = $request->validate([
+            'is_completed' => 'required|boolean',
+        ]);
+
+        // 3. Update the task status
+        $task->update($validated);
+
+        // 4. Since this is an AJAX/Inertia request, redirect back to the current page.
+        return redirect()->back();
+    }
 }

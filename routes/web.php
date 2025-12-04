@@ -31,6 +31,8 @@ Route::middleware('auth')->group(function () {
     // ADD this route for handling task deletion
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
+    // ADD this route for handling task status updates
+    Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
 
     // Default Breeze Routes below
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
