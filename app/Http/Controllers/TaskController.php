@@ -66,8 +66,16 @@ class TaskController extends Controller
             }
         }
 
-        // 3. Apply Pagination to the final query
-        $tasks = $query->paginate(10);
+        // 3. ADD SEARCH LOGIC based on 'search' query parameter
+        if($request->has('search') && $request->search !== null) {
+            $searchTerm = '%' . $request->search . '%';
+            // We use 'where' and 'like' to find partial matches in the title
+            $query->where('title', 'like', $searchTerm); 
+        }
+
+        // 4. Apply Pagination to the final query
+        // We also pass the search term back to frontend to keep the input populated
+        $tasks = $query->paginate(10)->withQueryString();
 
 
 
