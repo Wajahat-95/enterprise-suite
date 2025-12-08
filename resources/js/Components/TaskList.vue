@@ -9,13 +9,15 @@
                 @click="toggleCompletion(task)"
             >
                 <span
+                    @click="toggleCompletion(task)"
                     :class="{ 'line-through text-gray-500': task.is_completed }"
+                    class="flex-1 cursor-pointer"
                 >
                     {{ task.title }}
                 </span>
 
                 <button
-                    @click="deleteTask(task.id)"
+                    @click.stop="deleteTask(task.id)"
                     class="text-sm text-red-600 hover:text-red-900 font-medium ml-4 transition duration-150 ease-in-out"
                     aria-label="Delete Task"
                 >
@@ -61,7 +63,13 @@ const deleteTask = (id) => {
         // <-- ADDED OPENING BRACE
         // Use Inertia's router to send a DELETE request
         router.delete(route("tasks.destroy", id), {
-            preserveScroll: true, // Keeps the scroll position
+            preserveScroll: true,
+            onSuccess: () => {
+                // Task will be removed automatically by Inertia
+            },
+            onError: (errors) => {
+                alert('Failed to delete task: ' + (errors.error || 'Unknown error'));
+            } 
         });
     } // <-- ADDED CLOSING BRACE
 };

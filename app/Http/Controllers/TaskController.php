@@ -22,22 +22,6 @@ class TaskController extends Controller
         return response()->json($tasks);
     }
 
-    // Securely create a test task for the logged-in user
-
-    // public function createTestTask() {
-    //     // Get the ID of the currently logged-in user
-    //     $userId = Auth::id();
-
-    //     // Use the ID when creating the task
-    //     $task = Task::create([
-    //         'user_id' => $userId, // This is now dynamic
-    //         'title' => 'Complete Project Two: Task CRUD',
-    //         'is_completed' => false
-    //     ]);
-
-    //     return response('Test Task Created for User ID: ' . $userId, 200);
-    // }
-
     public function store(Request $request) {
         // 1. Validate the incoming request data
         $validated = $request->validate([
@@ -94,13 +78,15 @@ class TaskController extends Controller
     public function destroy(Task $task) { // Laravel automatically fetches the Task Object based on the ID
         // Security Check: Ensure the user owns the task before deleting
         if($task->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized action.'); // Stop if the user is not the owner
+            return response()->json(['error' => 'Unauthorized'], 403);   }
+
+        try {
+            $task->delete();
+            return redirect()->route('dashboard')->with('success', 'Task deleted successfully');
+        } catch (\Exception $e) {
+            \Log::error('Task deletion failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete task');
         }
-
-        $task->delete();
-
-        // Redirect bac to te dashboard to instantly update the list
-        return redirect(route('dashboard'));
     }
 
     public function update(Request $request, Task $task) {
