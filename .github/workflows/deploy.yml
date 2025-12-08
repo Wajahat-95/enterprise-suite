@@ -3,13 +3,13 @@ name: Deploy Laravel to AWS EC2
 on:
   push:
     branches:
-      - master # Only run deployment when code is pushed to the main branch
+      - master  # ← Changed from "main" to "master"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # 1. Get the latest code from GitHub
+      - uses: actions/checkout@v4
 
       - name: Set up SSH Deployment
         uses: appleboy/ssh-action@v1.0.3
@@ -18,32 +18,48 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # --- START DEPLOYMENT SCRIPT ON EC2 ---
-            
+            echo "=== Starting Deployment ==="
             cd /var/www/enterprise-suite/
 
-            # 1. Ensure the ubuntu user can manage files temporarily
-            sudo chown -R ubuntu:ubuntu .
+            # Set ubuntu as owner for git operations
+            sudo chown -R ubuntu:ubuntu /var/www/enterprise-suite
             
-            # 2. Pull the latest code (fastest step)
-            git pull origin main
+            echo "Current branch and commit:"
+            git branch
+            git log -1 --oneline
+            
+            # Fetch and reset to master branch
+            git fetch origin master
+            git checkout master
+            git reset --hard origin/master  # ← Changed from "main" to "master"
+            
+            echo "Updated to commit:"
+            git log -1 --oneline
 
-            # 3. Install/Update backend dependencies
+            # Install backend dependencies
             composer install --no-dev --prefer-dist --optimize-autoloader
 
-            # 4. Install/Update frontend dependencies and BUILD assets
-            npm install
+            # Install frontend and build
+            npm ci --prefer-offline --no-audit
             npm run build
-
-            # 5. Run critical production commands
-            php artisan optimize:clear       # Clear all caches before migration
-            php artisan migrate --force      # Run migrations against MariaDB
-
-            # 6. Reset permissions for Apache (www-data)
-            sudo chown -R www-data:www-data /var/www/enterprise-suite
-            sudo chmod -R 775 /var/www/enterprise-suite/storage
             
-            # 7. Restart Apache service to load new code/assets
-            sudo systemctl restart apache2
+            echo "Build completed at: $(date)"
 
-            # --- END DEPLOYMENT SCRIPT ON EC2 ---
+            # Laravel optimizations
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            # Set Apache permissions
+            sudo chown -R www-data:ubuntu /var/www/enterprise-suite
+            sudo chmod -R 775 /var/www/enterprise-suite/storage
+            sudo chmod -R 775 /var/www/enterprise-suite/bootstrap/cache
+            
+            # Restart Apache
+            sudo systemctl restart apache2
+            
+            echo "=== Deployment Complete ==="
