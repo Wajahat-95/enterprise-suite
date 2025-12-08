@@ -3,7 +3,7 @@ name: Deploy Laravel to AWS EC2
 on:
   push:
     branches:
-      - main # Only run deployment when code is pushed to the main branch
+      - master # Only run deployment when code is pushed to the main branch
 
 jobs:
   deploy:
