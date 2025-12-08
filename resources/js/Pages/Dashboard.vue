@@ -34,7 +34,7 @@ const submitSearch = () => {
     <AuthenticatedLayout>
         <template #header>
             <div class="bg-blue-600 text-white text-center py-4 text-2xl font-bold">
-                ✅ MASTER BRANCH DEPLOYMENT - {{ new Date().toLocaleString() }}
+                ✅ MASTER BRANCH DEPLOYMENT TESTING - {{ new Date().toLocaleString() }}
             </div>
             <h2 class="text-xl font-semibold leading-tight text-gray-800">
                 Enterprise Task Dashboard
