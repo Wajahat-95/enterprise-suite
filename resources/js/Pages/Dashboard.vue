@@ -33,8 +33,8 @@ const submitSearch = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="bg-blue-600 text-white text-center py-4 text-2xl font-bold">
-                ✅ MASTER BRANCH DEPLOYMENT TESTING - {{ new Date().toLocaleString() }}
+            <div style="background: red; color: white; padding: 50px; text-align: center; font-size: 40px; font-weight: bold;">
+            🔥 TESTING DEPLOYMENT {{ Math.random() }} 🔥
             </div>
             <h2 class="text-xl font-semibold leading-tight text-gray-800">
                 Enterprise Task Dashboard
