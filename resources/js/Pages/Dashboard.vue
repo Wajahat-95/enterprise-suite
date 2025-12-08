@@ -1,9 +1,9 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head } from "@inertiajs/vue3";
-import TaskList from "@/components/TaskList.vue";
-import TaskForm from "@/components/TaskForm.vue";
-import Pagination from "@/components/Pagination.vue";
+import TaskList from "@/Components/TaskList.vue";
+import TaskForm from "@/Components/TaskForm.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { Link, useForm } from "@inertiajs/vue3";
 
 // 1. DEFINE THE PROPS WE ARE RECEIVING FROM THE SERVER
