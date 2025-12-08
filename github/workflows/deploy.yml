@@ -1,0 +1,49 @@
+name: Deploy Laravel to AWS EC2
+
+on:
+  push:
+    branches:
+      -main # Only run deployment when code is pushed to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # 1. Get the latest code from Github
+
+      -name: Set up SSH Deployment
+       uses: appleboy/ssh-action@v1.0.3
+       with:
+        host: ${{ secrets.DEPLOY.HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+            # --- START DEPLOYMENT SCRIPT ON EC2 ---
+            
+            cd /var/www/enterprise-suite/
+
+            # 1. Ensure the ubuntu user can manage files temporarily
+            sudo chown -R ubuntu:ubuntu .
+            
+            # 2. Pull the latest code (fastest step)
+            git pull origin main
+
+            # 3. Install/Update backend dependencies
+            composer install --no-dev --prefer-dist --optimize-autoloader
+
+            # 4. Install/Update frontend dependencies and BUILD assets
+            npm install
+            npm run build
+
+            # 5. Run critical production commands
+            php artisan optimize:clear       # Clear all caches before migration
+            php artisan migrate --force      # Run migrations against MariaDB
+
+            # 6. Reset permissions for Apache (www-data)
+            sudo chown -R www-data:www-data /var/www/enterprise-suite
+            sudo chmod -R 775 /var/www/enterprise-suite/storage
+            
+            # 7. Restart Apache service to load new code/assets
+            sudo systemctl restart apache2
+
+            # --- END DEPLOYMENT SCRIPT ON EC2 --- 
