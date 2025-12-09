@@ -1,94 +1,298 @@
-<template>
-    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold text-gray-800">Enterprise Tasks</h2>
-        <ul v-if="tasks.length">
-            <li
-                v-for="task in tasks"
-                :key="task.id"
-                class="p-2 border-b last:border-b-0 flex justify-between items center transition duration-150 ease-in-out cursor-pointer hover:bg-gray-50"
-                @click="toggleCompletion(task)"
-            >
-                <span
-                    @click="toggleCompletion(task)"
-                    :class="{ 'line-through text-gray-500': task.is_completed }"
-                    class="flex-1 cursor-pointer"
-                >
-                    {{ task.title }}
-                </span>
-
-                <button
-                    @click.stop="deleteTask(task.id)"
-                    class="text-sm text-red-600 hover:text-red-900 font-medium ml-4 transition duration-150 ease-in-out"
-                    aria-label="Delete Task"
-                >
-                    Delete
-                </button>
-                <!-- <span class="text-xs text-green-500" v-if="task.is_completed">COMPLETE</span>
-                <span class="text-xs text-red-500">PENDING</span> -->
-            </li>
-        </ul>
-        <p v-else class="text-gray-500">
-            No tasks found. Create one by visiting /create-task.
-        </p>
-    </div>
-</template>
-
 <script setup>
-import { ref, watch } from "vue";
 import { router } from "@inertiajs/vue3";
+import { ref } from "vue";
 
-// 1. DEFINE THE PROP (initialTasks)
 const props = defineProps({
-    initialTasks: {
+    tasks: {
         type: Array,
         required: true,
-    },
+    }
 });
 
-// 2. USE 'ref' TO COPY PROPS INTO A LOCAL, REACTIVE VARIABLE
-// This allow us to modify the task list later (e.g., when deleting a task)
-const tasks = ref(props.initialTasks);
+const emit = defineEmits(["edit", "sort"]);
 
-watch(
-    () => props.initialTasks,
-    (newTasks) => {
-        tasks.value = newTasks;
+const selectedTasks = ref([]);
+
+const toggleTaskSelection = (taskId) => {
+    const index = selectedTasks.value.indexOf(taskId);
+    if(index > -1) {
+        selectedTasks.value.splice(index, 1);
+    } else {
+        selectedTasks.value.push(taskId);
     }
-);
-
-// ADD THE DELETE METHOD
-const deleteTask = (id) => {
-    // Confirmation is important for destructive actions (Corrected typo)
-    if (confirm("Are you sure you want to delete this task?")) {
-        // <-- ADDED OPENING BRACE
-        // Use Inertia's router to send a DELETE request
-        router.delete(route("tasks.destroy", id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Task will be removed automatically by Inertia
-            },
-            onError: (errors) => {
-                alert('Failed to delete task: ' + (errors.error || 'Unknown error'));
-            } 
-        });
-    } // <-- ADDED CLOSING BRACE
 };
 
-const toggleCompletion = (task) => {
-    // 1. Calculate the new completion state
-    const newStatus = !task.is_completed;
+const toggleAll = () => {
+    if (selectedTasks.value.length === props.tasks.length) {
+        selectedTasks.value = [];
+    } else {
+        selectedTasks.value = props.tasks.map((t) => t.id);
+    }
+};
 
-    // 2. Send the PATCH request to the controller
-    router.patch(
-        route("tasks.update", task.id),
-        {
-            is_completed: newStatus,
-        },
+const deleteTask = (id) => {
+    if (confirm("Are you sure you want to delete this task?")) {
+        router.delete(route("task.destroy", id), {
+            preserveScroll: true,
+        });
+    }
+};
+
+const bulkDelete = () => {
+    if (selectedTasks.value.length === 0 || !confirm(`Delete ${selectedTasks.value.length} selected task(s)`)) {
+        return;
+    }
+    router.post(
+        route("tasks.bulk-delete"),
+        { task_ids: selectedTasks.value },
         {
             preserveScroll: true,
+            onSuccess: () => {
+                selectedTasks.value = [];
+            }
         }
     );
 };
+
+const toggleCompletion = (task) => {
+    router.patch(
+        route("tasks.update", task.id),
+        { is_completed: !task.is_completed },
+        { preserveScroll: true }
+    );
+};
+
+const getPriorityColor = (priority) => {
+    const colors = {
+        urgent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+        high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+        medium:
+            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+        low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    };
+    return colors[priority] || colors.medium;
+};
+
+const getStatusColor = (status) => {
+    const colors = {
+        pending:
+            "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+        in_progress:
+            "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+        completed:
+            "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+        cancelled:
+            "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    };
+    return colors[status] || colors.pending;
+};
+
+const formatDate = (date) => {
+    if (!date) return "No due date";
+    const d = new Date(date);
+    return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+};
 </script>
+
+<template>
+    <div class="overflow-x-auto">
+        <!-- Bulk Actions -->
+        <div
+            v-if="selectedTasks.length > 0"
+            class="p-4 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between dark:bg-indigo-900"
+        >
+            <span class="text-sm font-medium text-indigo-900 dark:text-indigo-100">
+                {{ selectedTasks.length }} task(s) selected
+            </span>
+            <button
+                @click="bulkDelete"
+                class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-200"
+            >
+                Delete Selected
+            </button>
+        </div>
+
+        <!-- Task Table -->
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left">
+                        <input
+                            type="checkbox"
+                            @change="toggleAll"
+                            :checked="
+                                selectedTasks.length === tasks.length &&
+                                tasks.length > 0
+                            "
+                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                    </th>
+                    <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
+                    >
+                        Status
+                    </th>
+                    <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        @click="emit('sort', 'title')"
+                    >
+                        Task ↕
+                    </th>
+                    <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        @click="emit('sort', 'priority')"
+                    >
+                        Priority ↕
+                    </th>
+                    <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        @click="emit('sort', 'due_date')"
+                    >
+                        Due Date ↕
+                    </th>
+                    <th
+                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
+                    >
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody
+                class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700"
+            >
+                <tr
+                    v-if="tasks.length === 0"
+                    class="text-center"
+                >
+                    <td colspan="6" class="px-6 py-12 text-gray-500 dark:text-gray-400">
+                        <div class="flex flex-col items-center">
+                            <svg
+                                class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                            </svg>
+                            <p class="text-lg font-medium">No tasks found</p>
+                            <p class="text-sm">Create your first task to get started!</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr
+                    v-for="task in tasks"
+                    :key="task.id"
+                    class="hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-700"
+                    :class="{
+                        'opacity-60': task.is_completed,
+                        'bg-red-50 dark:bg-red-900/20': task.is_overdue,
+                    }"
+                >
+                    <td class="px-6 py-4">
+                        <input
+                            type="checkbox"
+                            :checked="selectedTasks.includes(task.id)"
+                            @change="toggleTaskSelection(task.id)"
+                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                    </td>
+                    <td class="px-6 py-4">
+                        <button
+                            @click="toggleCompletion(task)"
+                            class="flex items-center justify-center w-6 h-6 rounded border-2 transition duration-200"
+                            :class="
+                                task.is_completed
+                                    ? 'bg-green-500 border-green-500'
+                                    : 'border-gray-300 hover:border-green-500'
+                            "
+                        >
+                            <svg
+                                v-if="task.is_completed"
+                                class="w-4 h-4 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </button>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span
+                                class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                :class="{
+                                    'line-through text-gray-500':
+                                        task.is_completed,
+                                }"
+                            >
+                                {{ task.title }}
+                            </span>
+                            <span
+                                v-if="task.description"
+                                class="text-xs text-gray-500 mt-1 dark:text-gray-400"
+                            >
+                                {{ task.description }}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span
+                            :class="getPriorityColor(task.priority)"
+                            class="px-2 py-1 text-xs font-semibold rounded-full"
+                        >
+                            {{ task.priority }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span
+                                class="text-sm text-gray-900 dark:text-gray-100"
+                                :class="{
+                                    'text-red-600 font-semibold':
+                                        task.is_overdue,
+                                }"
+                            >
+                                {{ formatDate(task.due_date) }}
+                            </span>
+                            <span
+                                v-if="task.is_overdue"
+                                class="text-xs text-red-600 font-medium mt-1"
+                            >
+                                Overdue!
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button
+                            @click="emit('edit', task)"
+                            class="text-indigo-600 hover:text-indigo-900 font-medium text-sm transition duration-150 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            @click="deleteTask(task.id)"
+                            class="text-red-600 hover:text-red-900 font-medium text-sm transition duration-150 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</template>
 
 <style scoped></style>
