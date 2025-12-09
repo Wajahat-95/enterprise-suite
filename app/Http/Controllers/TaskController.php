@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Task;
-use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use App\Models\User;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
+
 
 class TaskController extends Controller
 {
@@ -17,7 +21,9 @@ class TaskController extends Controller
         $user = Auth::user();
 
         // 2. Use the relationship to getch only their tasks
-        $tasks = $user->tasks()->get();
+        $tasks = $user->tasks()->select(['id', 'title', 'status', 'priority', 'due_date', 'is_completed'])
+        ->latest()
+        ->get();
 
         return response()->json($tasks);
     }
@@ -25,14 +31,26 @@ class TaskController extends Controller
     public function store(Request $request) {
         // 1. Validate the incoming request data
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
+            'title' => 'required|string|max:255|min:3',
+            'description' => 'nullable|string|max:1000',
+            'priority' => ['nullable', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed', 'cancelled'])],
+            'due_date' => 'nullable|date|after_or_equal:today',
+            'tags' => 'nullable|array|max:10',
+            'tags.*' => 'string|max:50'
         ]);
 
-        // 2. Create the task, automatically linking it to the user
-        Auth::user()->tasks()->create($validated);
+        try {
+            $task = Auth::user()->tasks()->create($validated);
+            Log::info('Task created', ['task_id' => $task->id, 'user_id' => Auth::id()]);
+            
+            return redirect()->route('dashboard')->with('success', 'Task created successfully!');
 
-        // 3. Redirect back to the tasks list
-        return redirect(route('dashboard'));
+
+        } catch (\Exception $e) {
+            Log::error('Task creation failed', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to create task. Please try again.']);
+        }
     }
 
     public function dashboard(Request $request) {
@@ -41,52 +59,55 @@ class TaskController extends Controller
         // 1. Start the Base Query (secured to the user)
         $query = $user->tasks()->latest();
 
-        // 2. Add Filtering Logic based on 'status' query parameter
-        if($request->has('status')) {
-            if($request->status === 'completed') {
-                $query->where('is_completed', true);
-            } elseif ($request->status === 'pending') {
-                $query->where('is_completed', false);
+        // Filter by status
+
+        if($request->filled('status')) {
+            $status = $request->status;
+            if($status === 'completed') {
+                $query->completed();
+            } elseif ($status === 'pending') {
+                $query->pending();
+            } elseif ($status === 'overdue') {
+                $query->overdue();
+            } elseif (in_array($status, ['in_progress', 'cancelled'])) {
+                $query->status($status);
             }
         }
 
-        // 3. ADD SEARCH LOGIC based on 'search' query parameter
-        if($request->has('search') && $request->search !== null) {
-            $searchTerm = '%' . $request->search . '%';
-            // We use 'where' and 'like' to find partial matches in the title
-            $query->where('title', 'like', $searchTerm); 
+        // Filter by priority
+        if($request->filled('priority')) {
+            $query->priority($request->priority);
         }
 
-        // 4. Apply Pagination to the final query
-        // We also pass the search term back to frontend to keep the input populated
+        // Search
+        if($request->filled('search')) {
+            $query->search($request->search);
+        }
+
+        // Sorting
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
+        if(in_array($sortField, ['title', 'priority', 'due_date', 'created_at'])) {
+            $query->orderBy($sortField, $sortDirection);
+        }
+
+        
         $tasks = $query->paginate(10)->withQueryString();
 
-
-
-
-        // // 1. Use paginate(10) instead of get() to fetch chunks of 10 tasks.
-        // // 2. Use latest() to ensure the newest tasks appear first.
-        // $tasks = $user->tasks()->latest()->paginate(10);
+        // Get statistics
+        $stats = [
+            'total' => $user->tasks()->count(),
+            'completed' => $user->tasks()->completed()->count(),
+            'pending' => $user->tasks()->pending()->count(),
+            'overdue' => $user->tasks()->overdue()->count(),
+        ];
 
         return Inertia::render('Dashboard', [
-            // The $tasks variable now contains all pagination meta-data (links, counts, etc.)
-
-            'tasks' => $tasks
+            'tasks' => $tasks,
+            'stats' => $stats,
+            'filters' => $request->only(['status', 'priority', 'search', 'sort', 'direction']),
         ]);
-    }
-
-    public function destroy(Task $task) { // Laravel automatically fetches the Task Object based on the ID
-        // Security Check: Ensure the user owns the task before deleting
-        if($task->user_id !== Auth::id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);   }
-
-        try {
-            $task->delete();
-            return redirect()->route('dashboard')->with('success', 'Task deleted successfully');
-        } catch (\Exception $e) {
-            \Log::error('Task deletion failed: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to delete task');
-        }
     }
 
     public function update(Request $request, Task $task) {
@@ -98,13 +119,94 @@ class TaskController extends Controller
 
         // 2. Validate the incoming request data (must be a boolean)
         $validated = $request->validate([
-            'is_completed' => 'required|boolean',
+            'title' => 'sometimes|required|string|max:255|min:3',
+            'description' => 'nullable|string|max:1000',
+            'priority' => ['sometimes', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'status' => ['sometimes', Rule::in(['pending', 'in_progress', 'completed', 'cancelled'])],
+            'due_date' => 'nullable|date',
+            'is_completed' => 'sometimes|boolean',
+            'tags' => 'nullable|array|max:10',
+            'tags.*' => 'string|max:50',
         ]);
 
-        // 3. Update the task status
-        $task->update($validated);
+        try {
+            if(isset($validated['is_completed']) && $validated['is_completed'] && !$task->is_completed) {
+                $validated['completed_at'] = now();
+                $validated['status'] = 'completed';
+            } elseif (isset($validated['is_completed']) && !$validated['is_completed']) {
+                $validated['completed_at'] = null;
+            }
+            // Update the task status
+            $task->update($validated);
+    
+            Log::info('Task updated', ['task_id' => $task->id, 'user_id' => Auth::id()]);
+    
+            return back()->with('success', 'Task updated successfully!');
+        } catch (\Exception $e) {
+            Log::error('Task update failed', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to update task.']);
+        }
 
-        // 4. Since this is an AJAX/Inertia request, redirect back to the current page.
-        return redirect()->back();
     }
+
+    public function destroy(Task $task) { 
+        if($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $taskTitle = $task->title;
+            $task->delete();
+            Log::info('Task deleted', ['task_title' => $taskTitle, 'user_id' => Auth::id()]);
+
+            return redirect()->route('dashboard')->with('success', 'Task deleted successfully!');
+        } catch (\Exception $e) {
+            Log::error('Task deletion failed: ' . $e->getMessage());
+            return back()->withErrors('error', 'Failed to delete task.');
+        }
+    }
+
+    public function bulkDelete(Request $request) {
+        $validated = $request->validate([
+            'task_ids' => 'required|array',
+            'task_ids.*' => 'exists:tasks.id',
+        ]);
+
+        try {
+            $deleted = Auth::user()->tasks()
+            ->whereIn('id', $validated['task_ids'])
+            ->delete();
+
+            Log::info('Bulk delete', ['count' => $deleted, 'user_id' => Auth::id()]);
+            return back()->with('success', "{$deleted} tasks deleted successfully!");
+        } catch (\Exception $e) {
+            Log::error('Bulk delete failed', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to delete tasks.']);
+        }
+    }
+
+    public function export (Request $request) {
+        $user = Auth::user();
+        $tasks = $user-tasks()->get();
+
+        $csvData = 'Title,Description,Priority,Status,Due Date,Completed,Created At\n';
+
+        foreach ($tasks as $task) {
+            $csvData .= sprintf(
+                '"%s","%s","%s","%s","%s","%s","%s"' . "\n",
+                str_replace('"', '""', $task->title),
+                str_replace('"', '""', $task->description ?? ''),
+                $task->priority,
+                $task->status,
+                $task->due_date ? $task->due_date->format('Y-m-d') : '',
+                $task->is_completed ? 'Yes' : 'No',
+                $task->created_at->format('Y-m-d H:i:s')
+            );
+        }
+
+        return response($csvData)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="tasks-export-' . now()->format('Y-m-d') . '.csv"');
+    }
+
 }

@@ -13,13 +13,22 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            // Field 1: Task Owner (Foreign Key to the users table)
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            // Field 2: Task Title
             $table->string('title');
-            // Field 3: Task Status (defaulting to false, meaning incomplete)
+            $table->text('description')->nullable();
+            $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
+            $table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled'])->default('pending');
+            $table->date('due_date')->nullable();
             $table->boolean('is_completed')->default(false);
+            $table->timestamp('completed_at')->nullable();
+            $table->json('tags')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+            
+            // Indexes for better performance
+            $table->index(['user_id', 'status']);
+            $table->index(['user_id', 'due_date']);
+            $table->index('priority');
         });
     }
 
