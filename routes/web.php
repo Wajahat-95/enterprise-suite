@@ -15,24 +15,23 @@ Route::get('/', function () {
     ]);
 });
 
-// Route::get('/dashboard', function () {
-//     return Inertia::render('Dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
+// Dashboard - Main Application
 
 Route::get('/dashboard', [TaskController::class, 'dashboard'])->middleware(['auth', 'verified'])->name('dashboard');
 
-
+// Authenticated Routes
 Route::middleware('auth')->group(function () {
     // Tasks Routes
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
-    // Route::get('/create-task', [TaskController::class, 'createTestTask']);
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
-
-    // ADD this route for handling task deletion
+    Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    // ADD this route for handling task status updates
-    Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+    // Bulk Operations
+    Route::post('/tasks/bulk-delete', [TaskController::class, 'bulkDelete'])->name('tasks.bulk-delete');
+
+    // Export
+    Route::get('tasks/export', [TaskController::class, 'export'])->name('task.export');
 
     // Default Breeze Routes below
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
