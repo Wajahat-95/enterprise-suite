@@ -310,7 +310,7 @@ const formatDate = (date) => {
                             Edit
                         </button>
                         <button
-                            @click="deleteTask(task.id)"
+                            @click="openDeleteModal(task)"
                             class="text-red-600 hover:text-red-900 font-medium text-sm transition duration-150 dark:text-red-400 dark:hover:text-red-300"
                         >
                             Delete
