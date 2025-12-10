@@ -1,11 +1,11 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, usePage, Link, useForm } from "@inertiajs/vue3";
+import { ref, computed } from "vue";
 import TaskList from "@/Components/TaskList.vue";
-import TaskForm from "@/Components/TaskForm.vue";
+import TaskModal from "@/Components/TaskModal.vue";
 import Pagination from "@/Components/Pagination.vue";
-import { Link, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import StatsCards from "@/Components/StatsCards.vue";
 
 // DEFINE THE PROPS WE ARE RECEIVING FROM THE SERVER
 const props = defineProps({
@@ -41,7 +41,7 @@ const clearFilters = () => {
 
 const openTaskModal = (task = null) => {
     editingTask.value = task;
-    showTaskModel.value = true;
+    showTaskModal.value = true;
 };
 
 const closeTaskModal = () => {
@@ -140,7 +140,7 @@ const flashMessage = computed(() => page.props.flash?.success);
                                 </button>
                             </div>
                             <!-- Filter Buttons -->
-                             <div class="flex flex-wrap gap-3 items-center">
+                            <div class="flex flex-wrap gap-3 items-center">
                                 <span
                                     class="text-sm font-medium text-gray-700 dark:text-gray-300"
                                     >Status:</span
@@ -220,10 +220,27 @@ const flashMessage = computed(() => page.props.flash?.success);
                                 >
                                     Overdue
                                 </button>
+                                <button
+                                    type="button"
+                                    @click="
+                                        searchForm.status = 'cancelled';
+                                        submitSearch();
+                                    "
+                                    :class="[
+                                        'px-4 py-2 text-sm font-medium rounded-lg transition duration-200',
+                                        searchForm.status === 'cancelled'
+                                            ? 'bg-gray-500 text-white shadow-md'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300',
+                                    ]"
+                                >
+                                    Cancelled
+                                </button>
                             </div>
                             <!-- Priority Filter -->
-                             <div class="flex flex-wrap gap-3 items-center">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <div class="flex flex-wrap gap-3 items-center">
+                                <span
+                                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
                                     Priority:
                                 </span>
                                 <button
@@ -301,39 +318,40 @@ const flashMessage = computed(() => page.props.flash?.success);
                                 >
                                     Low
                                 </button>
-                             </div>
-                             <!-- Export Button -->
-                              <div class="flex justify-end">
-                                <Link 
+                            </div>
+                            <!-- Export Button -->
+                            <div class="flex justify-end">
+                                <a
                                     :href="route('tasks.export')"
                                     class="px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition duration-200"
-                                
+                                    target="_blank"
                                 >
                                     📥 Export to CSV
-                                </Link>
-                              </div>
+                                </a>
+                            </div>
                         </form>
                     </div>
                     <!-- Task List -->
-                    <TaskList 
+                    <TaskList
                         :tasks="tasks.data"
                         @edit="openTaskModal"
                         @sort="changeSort"
                     />
 
                     <!-- Pagination -->
-                    <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+                    <div
+                        class="p-6 border-t border-gray-200 dark:border-gray-700"
+                    >
                         <Pagination :links="tasks.links" />
-
                     </div>
                 </div>
             </div>
         </div>
         <!-- Task Modal -->
-         <TaskModal 
+        <TaskModal
             :show="showTaskModal"
             :task="editingTask"
             @close="closeTaskModal"
-         />
+        />
     </AuthenticatedLayout>
 </template>

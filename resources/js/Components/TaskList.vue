@@ -1,6 +1,7 @@
 <script setup>
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
+import DeleteConfirmModal from "./DeleteConfirmModal.vue";
 
 const props = defineProps({
     tasks: {
@@ -12,6 +13,9 @@ const props = defineProps({
 const emit = defineEmits(["edit", "sort"]);
 
 const selectedTasks = ref([]);
+const showDeleteModal = ref(false);
+const taskToDelete = ref(null);
+const isBulkDelete = ref(false);
 
 const toggleTaskSelection = (taskId) => {
     const index = selectedTasks.value.indexOf(taskId);
@@ -30,29 +34,23 @@ const toggleAll = () => {
     }
 };
 
-const deleteTask = (id) => {
-    if (confirm("Are you sure you want to delete this task?")) {
-        router.delete(route("task.destroy", id), {
-            preserveScroll: true,
-        });
-    }
+const openDeleteModal = (task) => {
+    taskToDelete.value = task;
+    isBulkDelete.value = false;
+    showDeleteModal.value = true;
 };
 
-const bulkDelete = () => {
-    if (selectedTasks.value.length === 0 || !confirm(`Delete ${selectedTasks.value.length} selected task(s)`)) {
-        return;
-    }
-    router.post(
-        route("tasks.bulk-delete"),
-        { task_ids: selectedTasks.value },
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                selectedTasks.value = [];
-            }
-        }
-    );
-};
+const openBulkDeleteModal = () => {
+    isBulkDelete.value = true;
+    showDeleteModal.value = true;
+}
+
+const closeDeleteModal = () => {
+    showDeleteModal.value = false;
+    taskToDelete.value = null;
+    isBulkDelete.value = false;
+    selectedTasks.value = [];
+}
 
 const toggleCompletion = (task) => {
     router.patch(
@@ -73,7 +71,19 @@ const getPriorityColor = (priority) => {
     return colors[priority] || colors.medium;
 };
 
+const getDisplayStatus = (task) => {
+    if(task.is_completed) {
+        return "Completed";
+    }
+    if(task.is_overdue) {
+        return "Overdue";
+    }
+
+    return task.status || "Pending";
+}
+
 const getStatusColor = (status) => {
+    const normalizedStatus = status.toLowerCase().replace('-', '_');
     const colors = {
         pending:
             "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
@@ -81,10 +91,12 @@ const getStatusColor = (status) => {
             "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
         completed:
             "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+        overdue:
+            "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
         cancelled:
             "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
     };
-    return colors[status] || colors.pending;
+    return colors[normalizedStatus] || colors.pending;
 };
 
 const formatDate = (date) => {
@@ -109,7 +121,7 @@ const formatDate = (date) => {
                 {{ selectedTasks.length }} task(s) selected
             </span>
             <button
-                @click="bulkDelete"
+                @click="openBulkDeleteModal"
                 class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-200"
             >
                 Delete Selected
@@ -130,6 +142,11 @@ const formatDate = (date) => {
                             "
                             class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
+                    </th>
+                    <th
+                        class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
+                    >
+                        Done
                     </th>
                     <th
                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
@@ -168,7 +185,7 @@ const formatDate = (date) => {
                     v-if="tasks.length === 0"
                     class="text-center"
                 >
-                    <td colspan="6" class="px-6 py-12 text-gray-500 dark:text-gray-400">
+                    <td colspan="7" class="px-6 py-12 text-gray-500 dark:text-gray-400">
                         <div class="flex flex-col items-center">
                             <svg
                                 class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600"
@@ -194,7 +211,7 @@ const formatDate = (date) => {
                     class="hover:bg-gray-50 transition duration-150 dark:hover:bg-gray-700"
                     :class="{
                         'opacity-60': task.is_completed,
-                        'bg-red-50 dark:bg-red-900/20': task.is_overdue,
+                        'bg-red-50 dark:bg-red-900/20': task.is_overdue && !task.is_completed,
                     }"
                 >
                     <td class="px-6 py-4">
@@ -205,10 +222,10 @@ const formatDate = (date) => {
                             class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="px-6 py-4 text-center">
                         <button
                             @click="toggleCompletion(task)"
-                            class="flex items-center justify-center w-6 h-6 rounded border-2 transition duration-200"
+                            class="flex items-center justify-center w-6 h-6 mx-auto rounded border-2 transition duration-200"
                             :class="
                                 task.is_completed
                                     ? 'bg-green-500 border-green-500'
@@ -229,6 +246,16 @@ const formatDate = (date) => {
                             </svg>
                         </button>
                     </td>
+
+                    <td class="px-6 py-4">
+                        <span
+                            :class="getStatusColor(getDisplayStatus(task))"
+                            class="px-2 py-1 text-xs font-semibold rounded-full uppercase whitespace-nowrap"
+                        >
+                            {{ getDisplayStatus(task) }}
+                        </span>
+                    </td>
+
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
                             <span
@@ -242,7 +269,7 @@ const formatDate = (date) => {
                             </span>
                             <span
                                 v-if="task.description"
-                                class="text-xs text-gray-500 mt-1 dark:text-gray-400"
+                                class="text-xs text-gray-500 mt-1 dark:text-gray-400 line-clamp-1"
                             >
                                 {{ task.description }}
                             </span>
@@ -251,7 +278,7 @@ const formatDate = (date) => {
                     <td class="px-6 py-4">
                         <span
                             :class="getPriorityColor(task.priority)"
-                            class="px-2 py-1 text-xs font-semibold rounded-full"
+                            class="px-2 py-1 text-xs font-semibold rounded-full uppercase whitespace-nowrap"
                         >
                             {{ task.priority }}
                         </span>
@@ -259,23 +286,23 @@ const formatDate = (date) => {
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
                             <span
-                                class="text-sm text-gray-900 dark:text-gray-100"
+                                class="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
                                 :class="{
                                     'text-red-600 font-semibold':
-                                        task.is_overdue,
+                                        task.is_overdue && !task.is_completed,
                                 }"
                             >
                                 {{ formatDate(task.due_date) }}
                             </span>
                             <span
-                                v-if="task.is_overdue"
-                                class="text-xs text-red-600 font-medium mt-1"
+                                v-if="task.is_overdue && !task.is_completed"
+                                class="text-xs text-red-600 font-medium mt-1 whitespace-nowrap"
                             >
                                 Overdue!
                             </span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right space-x-2">
+                    <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                         <button
                             @click="emit('edit', task)"
                             class="text-indigo-600 hover:text-indigo-900 font-medium text-sm transition duration-150 dark:text-indigo-400 dark:hover:text-indigo-300"
@@ -293,6 +320,14 @@ const formatDate = (date) => {
             </tbody>
         </table>
     </div>
+    <!-- Delete Confirmation Modal -->
+     <DeleteConfirmModal 
+        :show="showDeleteModal"
+        :task="taskToDelete"
+        :bulk-delete="isBulkDelete"
+        :task-ids="selectedTasks"
+        @close="closeDeleteModal"
+     />
 </template>
 
 <style scoped></style>

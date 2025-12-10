@@ -41,7 +41,7 @@ const submitForm = () => {
         form.patch(route("tasks.update", props.task.id), {
             preserveScroll: true,
             onSuccess: () => {
-                emit: ("close");
+                emit("close");
                 form.reset();
             },
         });

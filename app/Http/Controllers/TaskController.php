@@ -169,7 +169,7 @@ class TaskController extends Controller
     public function bulkDelete(Request $request) {
         $validated = $request->validate([
             'task_ids' => 'required|array',
-            'task_ids.*' => 'exists:tasks.id',
+            'task_ids.*' => 'exists:tasks,id',
         ]);
 
         try {
@@ -185,12 +185,13 @@ class TaskController extends Controller
         }
     }
 
-    public function export (Request $request) {
+    public function export(Request $request)
+    {
         $user = Auth::user();
-        $tasks = $user-tasks()->get();
+        $tasks = $user->tasks()->get();
 
-        $csvData = 'Title,Description,Priority,Status,Due Date,Completed,Created At\n';
-
+        $csvData = "Title,Description,Priority,Status,Due Date,Completed,Created At\n";
+        
         foreach ($tasks as $task) {
             $csvData .= sprintf(
                 '"%s","%s","%s","%s","%s","%s","%s"' . "\n",

@@ -6,8 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
-
-use function Symfony\Component\Clock\now;
+use Carbon\Carbon;
 
 class Task extends Model
 {
@@ -43,7 +42,7 @@ class Task extends Model
     }
 
     // Accessors
-    public function getIsOveredueAttribute() {
+    public function getIsOverdueAttribute() {
         if(!$this->due_date || $this->is_completed) {
             return false;
         }

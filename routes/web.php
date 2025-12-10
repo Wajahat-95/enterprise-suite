@@ -31,7 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks/bulk-delete', [TaskController::class, 'bulkDelete'])->name('tasks.bulk-delete');
 
     // Export
-    Route::get('tasks/export', [TaskController::class, 'export'])->name('task.export');
+    Route::get('/tasks/export', [TaskController::class, 'export'])->name('tasks.export');
 
     // Default Breeze Routes below
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
