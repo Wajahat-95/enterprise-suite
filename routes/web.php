@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\AdminController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -37,6 +38,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Admin Routes
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Admin Dashboard
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // User Management
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::patch('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('users.delete');
+
+    // All Tasks (Admin View)
+    Route::get('/tasks', [AdminController::class, 'allTasks'])->name('tasks');
+
+    // Activity Logs
+    Route::get('/activity-logs', [AdminController::class, 'activityLogs'])->name('activity-logs');
+
+    // System Info 
+    Route::get('/system-info', [AdminController::class, 'systemInfo'])->name('system-info');
 });
 
 require __DIR__.'/auth.php';
