@@ -14,7 +14,8 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
-    public function dashboard() {
+    public function dashboard()
+    {
         // Overall Statistics
         $stats = [
             'total_users' => User::count(),
@@ -34,12 +35,12 @@ class AdminController extends Controller
             ->latest()
             ->take(10)
             ->get();
-        
+
         // Task Statistics by Priority
         $tasksByPriority = Task::select('priority', DB::raw('count(*) as count'))
             ->groupBy('priority')
             ->get();
-        
+
         // Task Statistics by Status
         $tasksByStatus = Task::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
@@ -59,10 +60,10 @@ class AdminController extends Controller
                 $query->where('is_completed', true);
             }
         ])
-        ->having('tasks_count', '>', 0)
-        ->orderByDesc('completed_tasks')
-        ->take(10)
-        ->get();
+            ->having('tasks_count', '>', 0)
+            ->orderByDesc('completed_tasks')
+            ->take(10)
+            ->get();
 
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
@@ -77,7 +78,8 @@ class AdminController extends Controller
 
     // Display list of all users
 
-    public function users(Request $request) {
+    public function users(Request $request)
+    {
         $query = User::query();
 
         // Search
@@ -85,17 +87,17 @@ class AdminController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
         // Filter by role
-        if($request->filled('role')) {
+        if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
 
         // Filter by status
-        if($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('is_active', $request->status === 'active');
         }
 
@@ -103,7 +105,7 @@ class AdminController extends Controller
         $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
 
-        if(in_array($sortField, ['name', 'email', 'created_at', 'last_login_at'])) {
+        if (in_array($sortField, ['name', 'email', 'created_at', 'last_login_at'])) {
             $query->orderBy($sortField, $sortDirection);
         }
 
@@ -118,7 +120,8 @@ class AdminController extends Controller
     }
 
     // Update user information
-    public function updateUser(Request $request, User $user) {
+    public function updateUser(Request $request, User $user)
+    {
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
@@ -127,7 +130,7 @@ class AdminController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
-        if(isset($validated['password'])) {
+        if (isset($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -151,9 +154,10 @@ class AdminController extends Controller
     }
 
     // Delete a user
-    public function deleteUser(User $user) {
+    public function deleteUser(User $user)
+    {
         // prevent self-deletion
-        if($user->id === auth()->id()) {
+        if ($user->id === auth()->id()) {
             return back()->with('error', '⚠️ You cannot delete your own account.');
         }
 
@@ -171,33 +175,34 @@ class AdminController extends Controller
             'user_agent' => request()->userAgent(),
         ]);
 
-        return back()->with('success','🗑️ User deleted successfully!');
+        return back()->with('success', '🗑️ User deleted successfully!');
     }
 
-    public function allTasks(Request $request) {
+    public function allTasks(Request $request)
+    {
         $query = Task::with('user:id,name,email');
 
         // Search
-        if($request->filled('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%")
-                ->orWhereHas('user', function ($userQuery) use ($search) {
-                    $userQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Filter by priority
-        if($request->filled('priority')) {
+        if ($request->filled('priority')) {
             $query->where('priority', $request->priority);
         }
 
         // Filter by status
-        if($request->filled('status')) {
-            if($request->status === 'completed') {
+        if ($request->filled('status')) {
+            if ($request->status === 'completed') {
                 $query->where('is_completed', true);
             } elseif ($request->status === 'pending') {
                 $query->where('is_completed', false);
@@ -208,7 +213,7 @@ class AdminController extends Controller
         $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
 
-        if(in_array($sortField, ['title', 'priority', 'due_date', 'created_at'])) {
+        if (in_array($sortField, ['title', 'priority', 'due_date', 'created_at'])) {
             $query->orderBy($sortField, $sortDirection);
         }
 
@@ -218,30 +223,28 @@ class AdminController extends Controller
             'tasks' => $tasks,
             'filters' => $request->only(['search', 'priority', 'status', 'sort', 'direction']),
         ]);
-
-
     }
 
     // Display activity logs
-    public function activityLogs(Request $request) {
+    public function activityLogs(Request $request)
+    {
         $query = ActivityLog::with('user:id,name,email');
 
         // Filter by action
-        if($request->filled('action')) {
+        if ($request->filled('action')) {
             $query->where('action', $request->action);
         }
 
         // Filter by user
-        if($request->filled('user_id')) {
+        if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
 
         // Date range
-        if($request->filled('date_from')) {
+        if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
-
         }
-        if($request->filled('date_to')) {
+        if ($request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
@@ -259,7 +262,8 @@ class AdminController extends Controller
     }
 
     // Display system information
-    public function systemInfo() {
+    public function systemInfo()
+    {
         $info = [
             'php_version' => PHP_VERSION,
             'laravel_version' => app()->version(),
