@@ -7,9 +7,10 @@ It helps individuals and teams stay organized, track progress, and manage tasks 
 
 ## 🌍 Live Demo
 
-🔗 **Live App:** https://your-live-url.com  
-📧 **Demo Email:** demo@taskmanagerpro.com  
-🔑 **Password:** demo123456
+🔗 **Live App:** http://13.62.223.230/  
+📧 **Demo Admin Email:** admin@gmail.com 
+📧 **Demo User Email:** user@gmail.com  
+🔑 **Password:** password123
 
 ---
 

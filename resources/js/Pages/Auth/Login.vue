@@ -95,6 +95,17 @@ const submit = () => {
                     Log in
                 </PrimaryButton>
             </div>
+            <div class="mt-4">
+                <h2>
+                    📧 Demo Admin Email: admin@gmail.com 
+                </h2>
+                <h2>
+                    📧 Demo User Email: user@gmail.com
+                </h2>
+                <h2>
+                    🔑 Password: password123
+                </h2>
+            </div>
         </form>
     </GuestLayout>
 </template>
