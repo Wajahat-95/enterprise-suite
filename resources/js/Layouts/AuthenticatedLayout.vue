@@ -5,12 +5,14 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import Toast from '@/Components/Toast.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
-const showingNavigationDropdown = ref(false);
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth.user.role === 'admin');
+const showingNavigationDropdown = ref(false);
+
+const isAdmin = computed(() => page.props.auth.user?.role === 'admin');
 </script>
 
 <template>
@@ -211,5 +213,7 @@ const isAdmin = computed(() => page.props.auth.user.role === 'admin');
                 <slot />
             </main>
         </div>
+        <!-- Toast Component -->
+         <Toast />
     </div>
 </template>

@@ -60,7 +60,7 @@ const changeSort = (field) => {
 };
 
 // Check for flash messages
-const flashMessage = computed(() => page.props.flash?.success);
+// const flashMessage = computed(() => page.props.flash?.success);
 </script>
 
 <template>
@@ -86,7 +86,7 @@ const flashMessage = computed(() => page.props.flash?.success);
         <div class="py-8">
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
                 <!-- Success Message -->
-                <div
+                <!-- <div
                     v-if="flashMessage"
                     class="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center"
                 >
@@ -102,7 +102,7 @@ const flashMessage = computed(() => page.props.flash?.success);
                         />
                     </svg>
                     {{ flashMessage }}
-                </div>
+                </div> -->
 
                 <!-- Statistics Cards -->
                 <StatsCards :stats="stats" class="mb-6" />
